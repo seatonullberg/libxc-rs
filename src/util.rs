@@ -1,7 +1,13 @@
-use std::ffi::CStr;
+// TODO: xc_family_from_id
+// TODO: xc_available_functional_names
+
+use std::ffi::{CStr, CString};
+use std::mem::forget;
 
 use libc::c_char;
 use libxc_sys;
+
+use crate::error::FunctionalError;
 
 fn _rust_string_from_c_buf(c_buf: *const c_char) -> String {
     let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
@@ -36,6 +42,48 @@ pub fn reference_doi() -> String {
     _rust_string_from_c_buf(c_buf)
 }
 
+/// Returns the functional ID for a given name.
+pub fn functional_number<'a, S>(name: S) -> Result<i32, FunctionalError>
+where
+    S: Into<&'a str>,
+{
+    let c_string = CString::new(name.into()).unwrap();
+    let c_ptr: *const c_char = c_string.as_ptr();
+    let number = unsafe { libxc_sys::xc_functional_get_number(c_ptr) };
+    if number < 0 {
+        Err(FunctionalError::InvalidName)
+    } else {
+        Ok(number)
+    }
+}
+
+/// Returns the functional name for a given id.
+pub fn functional_name(number: i32) -> Result<String, FunctionalError> {
+    let numbers = available_functional_numbers();
+    if numbers.contains(&number) {
+        let c_buf = unsafe { libxc_sys::xc_functional_get_name(number) };
+        Ok(_rust_string_from_c_buf(c_buf))
+    } else {
+        Err(FunctionalError::InvalidID)
+    }
+}
+
+/// Returns the total number of available functionals.
+pub fn number_of_functionals() -> i32 {
+    unsafe { libxc_sys::xc_number_of_functionals() }
+}
+
+/// Returns a vec of all available functional IDs.
+pub fn available_functional_numbers() -> Vec<i32> {
+    let n_funcs = number_of_functionals() as usize;
+    let length = n_funcs - 1;
+    let mut vec: Vec<i32> = Vec::with_capacity(length);
+    let ptr = vec.as_mut_ptr();
+    forget(vec);
+    unsafe { libxc_sys::xc_available_functional_numbers(ptr) };
+    unsafe { Vec::from_raw_parts(ptr, length, length) }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::util;
@@ -64,5 +112,49 @@ mod tests {
     fn reference_doi() {
         let result = util::reference_doi();
         assert!(result.len() > 0);
+    }
+
+    #[test]
+    fn functional_number_valid() {
+        let name = "XC_GGA_X_GAM";
+        match util::functional_number(name) {
+            Ok(number) => assert_eq!(number, 32),
+            Err(_) => panic!(),
+        }
+    }
+
+    #[test]
+    fn functional_number_invalid() {
+        let name = "INVALID_NAME";
+        match util::functional_number(name) {
+            Ok(_) => panic!(),
+            Err(_) => (),
+        }
+    }
+
+    #[test]
+    fn functional_name_valid() {
+        let number = 32;
+        match util::functional_name(number) {
+            Ok(name) => assert_eq!(name, "gga_x_gam"),
+            Err(_) => panic!(),
+        }
+    }
+
+    #[test]
+    fn functional_name_invalid() {
+        let number = 0;
+        match util::functional_name(number) {
+            Ok(_) => panic!(),
+            Err(_) => (),
+        }
+    }
+
+    #[test]
+    fn available_functional_numbers() {
+        let n_funcs = util::number_of_functionals() as usize;
+        let length = n_funcs - 1;
+        let numbers = util::available_functional_numbers();
+        assert_eq!(numbers.len(), length);
     }
 }

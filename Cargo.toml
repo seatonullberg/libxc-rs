@@ -12,3 +12,4 @@ keywords = ["density-functional-theory", "exchange-correlation"]
 [dependencies]
 libc = "0.2"
 libxc-sys = { path = "libxc-sys" }
+thiserror = "1.0"
