@@ -1,5 +1,4 @@
 // TODO: xc_family_from_id
-// TODO: xc_available_functional_names
 
 use std::ffi::{CStr, CString};
 use std::mem::forget;
@@ -84,6 +83,16 @@ pub fn available_functional_numbers() -> Vec<i32> {
     unsafe { Vec::from_raw_parts(ptr, length, length) }
 }
 
+/// Returns a vec of all available functional names.
+pub fn available_functional_names() -> Vec<String> {
+    // Getting a vec of strings through the C FFI is too complicated for me.
+    // This should actually be done with an FFI call to `xc_available_functional_names`.
+    available_functional_numbers()
+        .iter()
+        .map(|number| functional_name(*number).unwrap())
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use crate::util;
@@ -156,5 +165,13 @@ mod tests {
         let length = n_funcs - 1;
         let numbers = util::available_functional_numbers();
         assert_eq!(numbers.len(), length);
+    }
+
+    #[test]
+    fn available_functional_names() {
+        let n_funcs = util::number_of_functionals() as usize;
+        let length = n_funcs - 1;
+        let names = util::available_functional_names();
+        assert_eq!(names.len(), length);
     }
 }
