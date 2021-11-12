@@ -12,4 +12,7 @@ keywords = ["density-functional-theory", "exchange-correlation"]
 [dependencies]
 libc = "0.2"
 libxc-sys = { path = "libxc-sys" }
+num-derive = "0.3"
+num-traits = "0.2"
+strum_macros = "0.22"
 thiserror = "1.0"

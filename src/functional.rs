@@ -1,5 +1,7 @@
 use libxc_sys;
 
+use num_traits::FromPrimitive;
+
 use crate::error::FunctionalError;
 use crate::util::{_rust_string_from_c_buf, functional_number};
 
@@ -8,6 +10,27 @@ use crate::util::{_rust_string_from_c_buf, functional_number};
 pub struct Functional {
     xc_func: *mut libxc_sys::xc_func_type,
     xc_info: *const libxc_sys::xc_func_info_type,
+}
+
+#[derive(Clone, Copy, Debug, Display, FromPrimitive)]
+pub enum FunctionalKind {
+    Exchange = 0,
+    Correlation = 1,
+    ExchangeCorrelation = 2,
+    Kinetic = 3,
+}
+
+#[derive(Clone, Copy, Debug, Display, FromPrimitive)]
+pub enum FunctionalFamily {
+    Unknown = -1,
+    LDA = 1,
+    GGA = 2,
+    MGGA = 4,
+    LCA = 8,
+    OEP = 16,
+    HybridGGA = 32,
+    HybridMGGA = 64,
+    HybridLDA = 128,
 }
 
 impl Functional {
@@ -54,16 +77,16 @@ impl Functional {
         unsafe { libxc_sys::xc_func_info_get_number(self.xc_info) }
     }
 
-    // TODO: Map this result to an enum for clarity.
     /// Returns the kind of the functional.
-    pub fn kind(&self) -> i32 {
-        unsafe { libxc_sys::xc_func_info_get_kind(self.xc_info) }
+    pub fn kind(&self) -> FunctionalKind {
+        let result = unsafe { libxc_sys::xc_func_info_get_kind(self.xc_info) };
+        FunctionalKind::from_i32(result).unwrap()
     }
 
-    // TODO: Map this result to an enum for clarity.
     /// Returns the family of the functional.
-    pub fn family(&self) -> i32 {
-        unsafe { libxc_sys::xc_func_info_get_family(self.xc_info) }
+    pub fn family(&self) -> FunctionalFamily {
+        let result = unsafe { libxc_sys::xc_func_info_get_family(self.xc_info) };
+        FunctionalFamily::from_i32(result).unwrap()
     }
 
     // I do not understand why this is not an array of integers.
@@ -76,7 +99,7 @@ impl Functional {
 
 #[cfg(test)]
 mod tests {
-    use crate::functional::Functional;
+    use crate::functional::{Functional, FunctionalFamily, FunctionalKind};
 
     #[test]
     fn from_id() {
@@ -113,13 +136,19 @@ mod tests {
     #[test]
     fn kind() {
         let func = Functional::from_id(1, false).unwrap();
-        assert_eq!(func.kind(), 0);
+        match func.kind() {
+            FunctionalKind::Exchange => (),
+            _ => panic!(),
+        }
     }
 
     #[test]
     fn family() {
         let func = Functional::from_id(32, false).unwrap();
-        assert_eq!(func.family(), 2);
+        match func.family() {
+            FunctionalFamily::GGA => (),
+            _ => panic!(),
+        }
     }
 
     #[test]
