@@ -8,7 +8,7 @@ use libxc_sys;
 
 use crate::error::FunctionalError;
 
-fn _rust_string_from_c_buf(c_buf: *const c_char) -> String {
+pub(crate) fn _rust_string_from_c_buf(c_buf: *const c_char) -> String {
     let c_str: &CStr = unsafe { CStr::from_ptr(c_buf) };
     let str_slice: &str = c_str.to_str().unwrap();
     str_slice.to_owned()
