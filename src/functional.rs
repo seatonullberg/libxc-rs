@@ -1,6 +1,6 @@
 use libxc_sys;
 
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 
 use crate::error::FunctionalError;
 use crate::util::{_rust_string_from_c_buf, functional_number};
@@ -33,18 +33,21 @@ pub enum FunctionalFamily {
     HybridLDA = 128,
 }
 
+#[derive(Clone, Copy, Debug, Display, ToPrimitive)]
+pub enum Polarization {
+    Unpolarized = 1,
+    Polarized = 2,
+}
+
 impl Functional {
     /// Constructs a [Functional] from a given id.
-    pub fn from_id(id: i32, with_spin: bool) -> Result<Self, FunctionalError> {
-        // Process `with_spin` argument.
-        let with_spin: i32 = match with_spin {
-            true => 2,
-            false => 1,
-        };
+    pub fn from_id(id: i32, polarization: Polarization) -> Result<Self, FunctionalError> {
+        // process `polarization` argument.
+        let polarization = polarization.to_i32().unwrap();
         // Allocate a LibXC functional type.
         let xc_func: *mut libxc_sys::xc_func_type = unsafe { libxc_sys::xc_func_alloc() };
         // Initialize the LibXC functional type.
-        let init_result = unsafe { libxc_sys::xc_func_init(xc_func, id, with_spin) };
+        let init_result = unsafe { libxc_sys::xc_func_init(xc_func, id, polarization) };
         if init_result != 0 {
             return Err(FunctionalError::FailedInitialization(init_result));
         }
@@ -56,12 +59,12 @@ impl Functional {
     }
 
     /// Constructs a [Functional] from a given name.
-    pub fn from_name<'a, S>(name: S, with_spin: bool) -> Result<Self, FunctionalError>
+    pub fn from_name<'a, S>(name: S, polarization: Polarization) -> Result<Self, FunctionalError>
     where
         S: Into<&'a str>,
     {
         match functional_number(name) {
-            Ok(number) => Self::from_id(number, with_spin),
+            Ok(number) => Self::from_id(number, polarization),
             Err(err) => Err(err),
         }
     }
@@ -99,11 +102,11 @@ impl Functional {
 
 #[cfg(test)]
 mod tests {
-    use crate::functional::{Functional, FunctionalFamily, FunctionalKind};
+    use crate::functional::{Functional, FunctionalFamily, FunctionalKind, Polarization};
 
     #[test]
     fn from_id() {
-        let func = Functional::from_id(32, true);
+        let func = Functional::from_id(32, Polarization::Polarized);
         match func {
             Ok(_) => (),
             Err(_) => panic!(),
@@ -112,7 +115,7 @@ mod tests {
 
     #[test]
     fn from_name() {
-        let func = Functional::from_name("XC_GGA_X_GAM", false);
+        let func = Functional::from_name("XC_GGA_X_GAM", Polarization::Polarized);
         match func {
             Ok(_) => (),
             Err(_) => panic!(),
@@ -121,7 +124,7 @@ mod tests {
 
     #[test]
     fn name() {
-        let func = Functional::from_id(1, true).unwrap();
+        let func = Functional::from_id(1, Polarization::Polarized).unwrap();
         let name = func.name();
         assert_eq!(name, "Slater exchange");
     }
@@ -129,13 +132,13 @@ mod tests {
     #[test]
     fn number() {
         let number = 1;
-        let func = Functional::from_id(number, true).unwrap();
+        let func = Functional::from_id(number, Polarization::Polarized).unwrap();
         assert_eq!(number, func.number());
     }
 
     #[test]
     fn kind() {
-        let func = Functional::from_id(1, false).unwrap();
+        let func = Functional::from_id(1, Polarization::Polarized).unwrap();
         match func.kind() {
             FunctionalKind::Exchange => (),
             _ => panic!(),
@@ -144,7 +147,7 @@ mod tests {
 
     #[test]
     fn family() {
-        let func = Functional::from_id(32, false).unwrap();
+        let func = Functional::from_id(32, Polarization::Polarized).unwrap();
         match func.family() {
             FunctionalFamily::GGA => (),
             _ => panic!(),
@@ -153,13 +156,13 @@ mod tests {
 
     #[test]
     fn flags() {
-        let func = Functional::from_id(1, false).unwrap();
+        let func = Functional::from_id(1, Polarization::Polarized).unwrap();
         assert_eq!(func.flags(), 135);
     }
 
     #[test]
     fn clone() {
-        let func = Functional::from_id(1, false).unwrap();
+        let func = Functional::from_id(1, Polarization::Polarized).unwrap();
         let cloned = func.clone();
         assert_eq!(func.name(), cloned.name());
     }
